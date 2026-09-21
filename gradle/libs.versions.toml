@@ -1,0 +1,51 @@
+[versions]
+# ---- 构建工具 ----
+# AGP 9 起内置 Kotlin 支持，因此不再需要 org.jetbrains.kotlin.android 插件
+agp = "9.2.1"
+# Kotlin 版本仅用于 Compose 编译插件；Miuix 要求 Kotlin >= 2.3.20
+kotlin = "2.4.10"
+
+# ---- AndroidX / Compose ----
+coreKtx = "1.18.0"
+lifecycle = "2.9.1"
+activityCompose = "1.13.0"
+composeBom = "2026.05.01"
+
+# ---- 第三方 UI ----
+# Miuix：小米 HyperOS / MIUI 风格的 Compose 组件库
+miuix = "0.9.3"
+# Backdrop：Kyant0 的液态玻璃（Liquid Glass）效果库
+backdrop = "2.0.1"
+
+# ---- 网络 ----
+okhttp = "4.12.0"
+
+[libraries]
+# ===== AndroidX 基础 =====
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
+
+# ===== Compose（版本由 BOM 统一管理）=====
+androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
+androidx-compose-ui = { module = "androidx.compose.ui:ui" }
+androidx-compose-ui-graphics = { module = "androidx.compose.ui:ui-graphics" }
+androidx-compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
+androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
+androidx-compose-foundation = { module = "androidx.compose.foundation:foundation" }
+androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
+
+# ===== Miuix（纯 Android 模块使用 -android 后缀产物）=====
+miuix-ui = { module = "top.yukonga.miuix.kmp:miuix-ui-android", version.ref = "miuix" }
+miuix-preference = { module = "top.yukonga.miuix.kmp:miuix-preference-android", version.ref = "miuix" }
+miuix-icons = { module = "top.yukonga.miuix.kmp:miuix-icons-android", version.ref = "miuix" }
+
+# ===== 液态玻璃效果（Kyant0 / Backdrop）=====
+backdrop = { module = "io.github.kyant0:backdrop", version.ref = "backdrop" }
+
+# ===== 网络 =====
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
