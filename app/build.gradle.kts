@@ -1,4 +1,5 @@
-# 安大校园网助手 - 应用模块构建配置
+// 安大校园网助手 - 应用模块构建配置
+// 注意：.kts 是 Kotlin 脚本，注释必须用 // 或 /* */，不能用 #（那是 .properties/.toml 的写法）
 
 plugins {
     alias(libs.plugins.android.application)
@@ -74,9 +75,9 @@ dependencies {
     implementation(libs.androidx.compose.material3)
 
     // ===== Miuix（MIUI / HyperOS 风格组件）=====
+    // 只用到 top.yukonga.miuix.kmp.basic.* 与 .theme.*，
+    // 因此只引入 miuix-ui 本体；miuix-preference / miuix-icons 当前未使用，不引入。
     implementation(libs.miuix.ui)
-    implementation(libs.miuix.preference)
-    implementation(libs.miuix.icons)
 
     // ===== 液态玻璃底部导航栏（Kyant0 / Backdrop）=====
     implementation(libs.backdrop)

@@ -36,9 +36,11 @@ androidx-compose-foundation = { module = "androidx.compose.foundation:foundation
 androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
 
 # ===== Miuix（纯 Android 模块使用 -android 后缀产物）=====
+# 组件在 top.yukonga.miuix.kmp.basic.*，主题在 .theme.*，均由 miuix-ui 提供
 miuix-ui = { module = "top.yukonga.miuix.kmp:miuix-ui-android", version.ref = "miuix" }
-miuix-preference = { module = "top.yukonga.miuix.kmp:miuix-preference-android", version.ref = "miuix" }
-miuix-icons = { module = "top.yukonga.miuix.kmp:miuix-icons-android", version.ref = "miuix" }
+# 下面两个当前未使用（偏好组件 / 扩展图标），需要时再解开
+# miuix-preference = { module = "top.yukonga.miuix.kmp:miuix-preference-android", version.ref = "miuix" }
+# miuix-icons = { module = "top.yukonga.miuix.kmp:miuix-icons-android", version.ref = "miuix" }
 
 # ===== 液态玻璃效果（Kyant0 / Backdrop）=====
 backdrop = { module = "io.github.kyant0:backdrop", version.ref = "backdrop" }
