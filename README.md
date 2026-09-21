@@ -39,32 +39,43 @@ UI 使用 [Miuix](https://github.com/compose-miuix-ui/miuix)（小米 HyperOS / 
 
 ## 二、怎么拿到 APK
 
-### 1. 建仓库并推代码
+### 1. 推送代码
 
-在 GitHub 上新建一个空仓库，然后把本目录内容推上去：
+仓库已经在本地 `android/` 目录里初始化好了（含首次提交），直接推：
 
 ```bash
 cd android
-git init
-git add .
-git commit -m "feat: 安大校园网助手 Android 版"
-git branch -M main
-git remote add origin git@github.com:<你的用户名>/<仓库名>.git
 git push -u origin main
 ```
 
-> 注意：推的是 `android/` 目录的内容，让 `.github/`、`gradlew`、`app/` 都处在你仓库的根目录。
+> 注意：推的是 `android/` 目录的内容，`.github/`、`gradlew`、`app/` 都在仓库根目录。
 
-### 2. 等 Actions 跑完
+### 2. （可选）构建前自定义包名 / 应用名 / 版本号
 
-推送后到仓库的 **Actions** 页面，`Build APK` 会自动开始（首次约 5–10 分钟，主要花在下 Gradle 和依赖）。
+到 **Actions** 页面 → 左侧点 `Build APK` → 右上角 **Run workflow**，会弹出四个输入框：
 
-跑完后在运行页面底部 **Artifacts** 下载 `campusnet-apk`，里面有两个 APK：
+| 字段 | 说明 | 默认值 |
+|---|---|---|
+| **包名 Package Name** | 应用的唯一标识符，反向域名格式。改了等于换一个 App，会和旧版并存 | `com.bugjump.ahuweb` |
+| **应用名称 App Name** | 手机桌面 / 设置里显示的名字 | `Ahu Plus` |
+| **版本号 Version Code** | 整数，系统内部据此判断新旧，**每次发新版必须递增**（否则装不上或覆盖失败） | `1` |
+| **版本名 Version Name** | 展示给用户看的版本字符串 | `1.0.0` |
 
-- `app-debug.apk` —— 调试版，**推荐日常用**
-- `app-release.apk` —— 发布版（用 debug 签名，可直接安装）
+四项都可以留空，留空即用默认值。直接 `git push` 触发的构建不弹框，同样用默认值。
 
-### 3. 走 Release 直链（可选）
+> **包名 ≠ 源码包名**：这个参数只改 APK 的身份（Gradle 的 `applicationId`），
+> Kotlin 源码所在的包名固定是 `com.ahu.campusnet`，两者互不影响，改包名不用动任何源码。
+
+### 3. 等 Actions 跑完
+
+跑完后在运行页面底部 **Artifacts** 下载 `apk-<版本名>`，里面有两个 APK：
+
+- `Ahu Plus-1.0.0-debug.apk` —— 调试版，**推荐日常用**
+- `Ahu Plus-1.0.0-release.apk` —— 发布版（用 debug 签名，可直接安装）
+
+文件名按「应用名-版本名-变体」生成，方便区分不同参数的构建产物。
+
+### 4. 走 Release 直链（可选）
 
 ```bash
 git tag v1.0.0

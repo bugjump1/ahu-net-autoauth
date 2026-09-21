@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">安大校园网助手</string>
-</resources>
+<!--
+  应用名称 app_name 不在这里定义，而是由 app/build.gradle.kts 用
+  resValue("string", "app_name", ...) 注入 —— 这样 GitHub Actions 的
+  「Run workflow」表单就能在构建前指定应用名。
+
+  若这里也写一份 <string name="app_name">，会与 resValue 生成的资源重名，
+  AAPT 会直接报 duplicate resource 错误。
+
+  其它字符串仍可正常加在这个文件里。
+-->
+<resources />

@@ -6,16 +6,38 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+// ---------------------------------------------------------------------------
+// 可由 CI 传入的构建参数（GitHub Actions 的「Run workflow」表单 → 以 -P 传进来）：
+//   -PappId=com.bugjump.ahuweb   包名（applicationId，决定 APK 的唯一标识）
+//   -PappName=Ahu Plus           应用名称（桌面 / 设置里显示）
+//   -PversionCode=1              版本号（整数，每次更新须递增）
+//   -PversionName=1.0.0          版本名（展示用字符串）
+// 本地构建不传就用下面的默认值。
+//
+// 注意：namespace 固定为 com.ahu.campusnet —— 那是 Kotlin 源码所在的包名，
+//       与 APK 的 applicationId 是两回事，改包名不需要动任何源码。
+// ---------------------------------------------------------------------------
+val appId = providers.gradleProperty("appId").orNull?.takeIf { it.isNotBlank() }
+    ?: "com.bugjump.ahuweb"
+val appName = providers.gradleProperty("appName").orNull?.takeIf { it.isNotBlank() }
+    ?: "Ahu Plus"
+val appVersionCode = providers.gradleProperty("versionCode").orNull?.trim()?.toIntOrNull()
+    ?: 1
+val appVersionName = providers.gradleProperty("versionName").orNull?.takeIf { it.isNotBlank() }
+    ?: "1.0.0"
+
 android {
     namespace = "com.ahu.campusnet"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.ahu.campusnet"
+        applicationId = appId
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
+        // 应用名从这里注入，因此 res/values/strings.xml 里不再定义 app_name
+        resValue("string", "app_name", appName)
     }
 
     buildTypes {

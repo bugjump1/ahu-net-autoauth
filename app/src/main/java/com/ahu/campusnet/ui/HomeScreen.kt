@@ -25,7 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.ahu.campusnet.R
 import com.ahu.campusnet.auth.AuthController
 import com.ahu.campusnet.auth.LinkState
 import com.ahu.campusnet.data.ConfigRepository
@@ -54,7 +56,8 @@ fun HomeScreen(onGoSettings: () -> Unit) {
         contentPadding = PaddingValues(bottom = 120.dp),
     ) {
         item {
-            ScreenHeader("安大校园网助手", "打开即认证 · Dr.COM")
+            // 标题直接用注入的应用名，和应用在桌面上的显示保持一致
+            ScreenHeader(stringResource(R.string.app_name), "打开即认证 · Dr.COM")
         }
 
         // 没填账号密码时给一条醒目提示
