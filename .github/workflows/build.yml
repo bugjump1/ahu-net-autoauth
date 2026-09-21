@@ -24,13 +24,40 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept licenses and install SDK components
+      # 注意：这里刻意不使用 android-actions/setup-android@v3。
+      # 该 action 内部会执行 `sdkmanager tools`，而独立的 "tools" 包已从 SDK 仓库移除，
+      # 会直接报 "Failed to find package 'tools'" 并让整个步骤失败。
+      # GitHub 的 ubuntu runner 已预装 Android SDK（ANDROID_HOME=/usr/local/lib/android/sdk），
+      # 用自带的 sdkmanager 补齐所需组件即可，缺什么补什么。
+      - name: Prepare Android SDK
         run: |
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager --install "platforms;android-36" "build-tools;36.0.0" > /dev/null || true
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          echo "SDK_ROOT = $SDK_ROOT"
+
+          SDKMANAGER="$(ls -d "$SDK_ROOT"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -n1)"
+          if [ -z "$SDKMANAGER" ]; then
+            SDKMANAGER="$(command -v sdkmanager || true)"
+          fi
+          echo "sdkmanager = $SDKMANAGER"
+
+          # 接受许可（不阻断：镜像里通常已经接受过）
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+
+          # 逐个安装，失败只告警不阻断 —— 组件可能已预装，AGP 也能自动补下
+          for pkg in "platform-tools" "platforms;android-36" "build-tools;36.0.0"; do
+            echo "--- install $pkg ---"
+            "$SDKMANAGER" --install "$pkg" || echo "警告：$pkg 未安装成功，继续构建"
+          done
+
+          echo "--- 现有 platforms ---"
+          ls "$SDK_ROOT/platforms" || true
+          echo "--- 现有 build-tools ---"
+          ls "$SDK_ROOT/build-tools" || true
+
+          # 让 AGP 明确知道 SDK 位置
+          if [ ! -f local.properties ]; then
+            echo "sdk.dir=$SDK_ROOT" > local.properties
+          fi
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -43,7 +70,8 @@ jobs:
             || (chmod +x ./gradlew && ./gradlew :app:assembleDebug :app:assembleRelease --stacktrace)
 
       - name: Show APK info
-        run: find app/build/outputs/apk -name "*.apk" -exec ls -lh {} \;
+        if: always()
+        run: find app/build/outputs/apk -name "*.apk" -exec ls -lh {} \; || true
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4

@@ -3,7 +3,6 @@ package com.ahu.campusnet.ui
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -52,7 +51,7 @@ fun GlassBottomBar(
     backdrop: Backdrop,
     modifier: Modifier = Modifier,
 ) {
-    val light = !isSystemInDarkTheme()
+    val light = !isDarkTheme()
     val surfaceColor = if (light) {
         Color(0xFFFAFAFA).copy(alpha = 0.42f)
     } else {
