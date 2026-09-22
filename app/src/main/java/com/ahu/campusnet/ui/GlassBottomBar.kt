@@ -435,8 +435,9 @@ private fun RowScope.GlassTabItem(tab: BottomTab, contentColor: Color) {
         Image(
             painter = painterResource(tab.iconRes),
             contentDescription = null,
-            modifier = Modifier.size(22.dp),
-            colorFilter = ColorFilter.tint(contentColor),
+            modifier = Modifier.size(24.dp),
+            // 参考实现：图标/文字用 onSurfaceContainer@0.8（深灰而非纯黑），观感更柔和
+            colorFilter = ColorFilter.tint(contentColor.copy(alpha = 0.8f)),
         )
         BasicText(
             text = tab.label,

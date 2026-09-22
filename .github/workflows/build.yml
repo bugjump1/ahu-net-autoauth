@@ -22,12 +22,12 @@ on:
       version_code:
         description: '版本号 Version Code（整数，每次更新必须递增）'
         required: false
-        default: '1'
+        default: '2'
         type: string
       version_name:
-        description: '版本名 Version Name（展示用字符串，如 1.0.0）'
+        description: '版本名 Version Name（展示用字符串，如 1.1.0）'
         required: false
-        default: '1.0.0'
+        default: '1.1.0'
         type: string
 
 permissions:
@@ -41,8 +41,8 @@ jobs:
       # inputs.* 在 push / PR 触发时为空字符串，用 || 回落到默认值
       APP_ID: ${{ inputs.app_id || 'com.bugjump.ahuweb' }}
       APP_NAME: ${{ inputs.app_name || 'Ahu Plus' }}
-      VERSION_CODE: ${{ inputs.version_code || '1' }}
-      VERSION_NAME: ${{ inputs.version_name || '1.0.0' }}
+      VERSION_CODE: ${{ inputs.version_code || '2' }}
+      VERSION_NAME: ${{ inputs.version_name || '1.1.0' }}
 
     steps:
       - name: Checkout
@@ -127,10 +127,12 @@ jobs:
           echo "--- 产物 ---"
           ls -lh out
 
+      # 产物名带上 run 编号：否则每次构建都叫 apk-1.0.0，
+      # 从 Actions 列表里很容易下到上一次的旧包（这次"装了最新还是老样子"就是这么来的）
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: apk-${{ env.VERSION_NAME }}
+          name: apk-${{ env.VERSION_NAME }}-r${{ github.run_number }}
           path: out/*.apk
           if-no-files-found: error
           retention-days: 30

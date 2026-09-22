@@ -93,7 +93,10 @@ fun MainScreen() {
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+                // 参考实现（ScheduleBottomBar.kt）：底栏只占屏宽 63% 并水平居中，
+                // 是一条"悬浮"的短胶囊，不是接近全宽 —— "底栏太大"就出在这里
+                .fillMaxWidth(0.63f)
+                .padding(bottom = 8.dp),
         )
     }
 }

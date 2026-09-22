@@ -173,6 +173,14 @@ object AuthController {
         val kernel = withContext(Dispatchers.IO) {
             runCatching { client.kernelOnline() }.getOrNull()
         }
+        if (kernel == null) {
+            // 内核没给结论：把服务端原始返回记进日志，下次能直接看出是解析失败还是连不上
+            appendLog(
+                "内核 chkstatus 无结论，原始返回：" +
+                    client.lastRawBody.ifBlank { "（空，连接失败）" }
+            )
+        }
+
         var source = "内核接口"
         val online = when {
             kernel != null -> kernel
@@ -187,7 +195,7 @@ object AuthController {
             }
 
             else -> {
-                source = "未在线"
+                source = "内核/系统/探针均未通过"
                 false
             }
         }
@@ -199,9 +207,12 @@ object AuthController {
         }
 
         // ④ 未在线：需要认证
-        setState(LinkState.NotAuthed, "未认证")
+        setState(
+            LinkState.NotAuthed,
+            if (cfg.hasCredential) "未在线（$source）" else "尚未配置账号密码",
+        )
         if (!autoLogin) {
-            appendLog("当前未认证（仅检测，未执行认证）")
+            appendLog("当前未认证（仅检测，未执行认证；判定来源：$source）")
             return
         }
         if (!cfg.hasCredential) {

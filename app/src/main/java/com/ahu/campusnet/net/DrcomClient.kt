@@ -49,6 +49,13 @@ class DrcomClient(
     var kernelInfo: Map<String, String> = emptyMap()
         private set
 
+    /**
+     * 最近一次请求的原始返回（截断到 200 字符）。
+     * 用于在日志里诊断"为什么解析不出来"——能直接看到服务端到底回了什么。
+     */
+    var lastRawBody: String = ""
+        private set
+
     private val http: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(6, TimeUnit.SECONDS)
         .readTimeout(12, TimeUnit.SECONDS)
@@ -211,7 +218,9 @@ class DrcomClient(
 
             client.newCall(builder.build()).execute().use { response ->
                 captureCookies(response)
-                response.body?.string()
+                val body = response.body?.string().orEmpty()
+                lastRawBody = body.take(200)
+                body
             }
         } catch (e: Exception) {
             null
