@@ -309,8 +309,9 @@ fun GlassBottomBar(
                         },
                         onDragCancel = { drag.release() },
                         onHorizontalDrag = { change, dragAmount ->
-                            drag.dragBy(dragAmount.x, tabWidth)
-                            drag.dragOffsetBy(dragAmount.x)
+                            // dragAmount 已经是本次横向位移（px），不是 Offset
+                            drag.dragBy(dragAmount, tabWidth)
+                            drag.dragOffsetBy(dragAmount)
                             change.consume()
                         },
                     )
