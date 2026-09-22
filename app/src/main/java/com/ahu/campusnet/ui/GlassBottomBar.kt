@@ -430,11 +430,18 @@ private class GlassDragState(
         animateToIndex(index)
     }
 
-    /** 拖动跟手：用阻尼弹簧追，手感更"黏" */
+    /** 拖动跟手：直接把值设到位（1:1）。
+     *  ★ 不能用弹簧 animateTo 追目标 —— 每帧重设目标时弹簧只逼近剩余距离的
+     *  ~12%（stiffness=1000 的固有滞后），快拖时永远追不上手指，
+     *  表现为「手指划了 3 格、胶囊只挪 0.3 格，松手又弹回去」。
+     *  弹簧只留给松手吸附（settle）和 tab 起飞（animateToIndex）。 */
     fun dragBy(deltaPx: Float, tabWidthPx: Float) {
         if (tabWidthPx <= 0f) return
         val target = (value.value + deltaPx / tabWidthPx).coerceIn(0f, maxIndex)
-        scope.launch { value.animateTo(target, valueSpec) { trackVelocity() } }
+        scope.launch {
+            value.snapTo(target)
+            trackVelocity()
+        }
     }
 
     fun dragOffsetBy(deltaPx: Float) {
