@@ -193,7 +193,7 @@ GET http://172.16.253.3/drcom/chkstatus?callback=dr1002&v=<随机数>
 
 ## 七、本地构建（可选，不推荐）
 
-CI 已经够用。真要本地跑，需要 JDK 21 + Android SDK（platform 36），然后：
+CI 已经够用。真要本地跑，需要 JDK 21 + Android SDK（platform 37），然后：
 
 ```bash
 ./gradlew :app:assembleDebug

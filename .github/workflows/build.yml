@@ -79,7 +79,9 @@ jobs:
 
           yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
 
-          for pkg in "platform-tools" "platforms;android-36" "build-tools;36.0.0"; do
+          # compileSdk 用 37（Miuix / Backdrop 的 AAR 元数据要求 >= 37）。
+          # 逐个安装，失败只告警不阻断 —— 组件可能已预装，AGP 也能自动补下。
+          for pkg in "platform-tools" "platforms;android-37" "build-tools;37.0.0"; do
             echo "--- install $pkg ---"
             "$SDKMANAGER" --install "$pkg" || echo "警告：$pkg 未安装成功，继续构建"
           done

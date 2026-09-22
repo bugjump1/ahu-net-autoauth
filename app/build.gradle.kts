@@ -28,11 +28,16 @@ val appVersionName = providers.gradleProperty("versionName").orNull?.takeIf { it
 
 android {
     namespace = "com.ahu.campusnet"
-    compileSdk = 36
+    // Miuix 0.9.3 / Backdrop 2.0.1 等依赖的 AAR 元数据要求 compileSdk >= 37，
+    // 否则 CheckAarMetadata 会直接失败（16 issues were found when checking AAR metadata）。
+    compileSdk = 37
 
     defaultConfig {
         applicationId = appId
         minSdk = 26
+        // targetSdk 保持 36：compileSdk 只影响"能调用哪些 API"，
+        // targetSdk 才决定启用哪些新系统的运行时行为，两者可以不同。
+        // 不跟到 37 是为了不贸然引入尚未验证的系统行为变更。
         targetSdk = 36
         versionCode = appVersionCode
         versionName = appVersionName
