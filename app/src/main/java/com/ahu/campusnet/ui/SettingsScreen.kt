@@ -106,8 +106,7 @@ fun SettingsScreen() {
                     )
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        text = "安大这套 Dr.COM 只认裸学号（例如 A126300054），不要加 @xyw 之类的后缀。" +
-                            "密码是校园网密码，不一定等于教务系统密码。",
+                        text = "校园网密码默认身份证号后六位",
                         style = MiuixTheme.textStyles.body2,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )

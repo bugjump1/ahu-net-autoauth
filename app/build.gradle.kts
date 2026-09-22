@@ -22,9 +22,9 @@ val appId = providers.gradleProperty("appId").orNull?.takeIf { it.isNotBlank() }
 val appName = providers.gradleProperty("appName").orNull?.takeIf { it.isNotBlank() }
     ?: "Ahu Plus"
 val appVersionCode = providers.gradleProperty("versionCode").orNull?.trim()?.toIntOrNull()
-    ?: 6
+    ?: 7
 val appVersionName = providers.gradleProperty("versionName").orNull?.takeIf { it.isNotBlank() }
-    ?: "1.3.2"
+    ?: "1.4.0"
 
 android {
     namespace = "com.ahu.campusnet"

@@ -169,44 +169,24 @@ object AuthController {
             return
         }
 
-        // ③ 是否已联网：内核接口优先；但内核的「未在线」不作数 ——
-        //    实测存在假阴性（终端明明在线、Portal 也返回「该终端 IP 已在线」，
-        //    内核却回 result=0），所以内核说未在线时必须再用系统状态/外网探针核实。
+        // ③ 是否已联网：内核接口优先；内核说未在线时不全信，再用系统状态/外网探针复核
         val kernel = withContext(Dispatchers.IO) {
             runCatching { client.kernelOnline() }.getOrNull()
         }
         if (kernel == null) {
-            // 内核没给结论：把服务端原始返回记进日志，下次能直接看出是解析失败还是连不上
-            appendLog(
-                "内核 chkstatus 无结论，原始返回：" +
-                    client.lastRawBody.ifBlank { "（空，连接失败）" }
-            )
+            // 原始返回只进 logcat 供排查，用户日志保持简洁
+            Log.i(TAG, "chkstatus 无结论：${client.lastRawBody.ifBlank { "（空）" }}")
+            appendLog("在线状态确认失败，改用其他方式判断")
         } else if (!kernel) {
-            appendLog("内核报未在线（该接口有假阴性，改用系统状态/外网探针核实）")
+            appendLog("本地检测未在线，正在复核")
         }
 
-        var source = "内核接口"
-        val online = when {
-            kernel == true -> true
-
-            withContext(Dispatchers.IO) { NetInfo.isInternetOk(context) } -> {
-                source = "系统联网状态"
-                true
-            }
-
-            withContext(Dispatchers.IO) { NetInfo.probeInternetOk() } -> {
-                source = "外网探针"
-                true
-            }
-
-            else -> {
-                source = "内核/系统/探针均未通过"
-                false
-            }
-        }
+        val online = kernel == true ||
+            withContext(Dispatchers.IO) { NetInfo.isInternetOk(context) } ||
+            withContext(Dispatchers.IO) { NetInfo.probeInternetOk() }
         if (online) {
             setState(LinkState.Online, "已在线")
-            appendLog("已在线，无需认证（来源：$source）")
+            appendLog("已在线，无需认证")
             logKernelInfo(client)
             return
         }
@@ -214,10 +194,10 @@ object AuthController {
         // ④ 未在线：需要认证
         setState(
             LinkState.NotAuthed,
-            if (cfg.hasCredential) "未在线（$source）" else "尚未配置账号密码",
+            if (cfg.hasCredential) "未在线" else "尚未配置账号密码",
         )
         if (!autoLogin) {
-            appendLog("当前未认证（仅检测，未执行认证；判定来源：$source）")
+            appendLog("当前未认证（仅检测）")
             return
         }
         if (!cfg.hasCredential) {

@@ -391,10 +391,12 @@ private class GlassDragState(
     private val maxIndex: Float,
 ) {
     private val valueSpec = spring<Float>(1f, 1000f, 0.001f)
-    private val velocitySpec = spring<Float>(0.5f, 300f, 0.005f)
+    // ★ 速度与缩放必须用临界阻尼（dampingRatio=1）：欠阻尼弹簧会在目标附近
+    //   震荡几拍，撞边界后表现为胶囊/内部灰色填充块形状异常、迟迟不归位
+    private val velocitySpec = spring<Float>(1f, 300f, 0.005f)
     private val pressSpec = spring<Float>(1f, 1000f, 0.001f)
-    private val scaleXSpec = spring<Float>(0.6f, 250f, 0.001f)
-    private val scaleYSpec = spring<Float>(0.7f, 250f, 0.001f)
+    private val scaleXSpec = spring<Float>(1f, 250f, 0.001f)
+    private val scaleYSpec = spring<Float>(1f, 250f, 0.001f)
 
     /** 当前选中位置，可以是小数（拖动过程中） */
     val value = Animatable(initialIndex, 0.001f)
@@ -418,6 +420,8 @@ private class GlassDragState(
         scope.launch { pressProgress.animateTo(0f, pressSpec) }
         scope.launch { scaleX.animateTo(1f, scaleXSpec) }
         scope.launch { scaleY.animateTo(1f, scaleYSpec) }
+        // 速度一并归零：撞边界后 velocity 若残留，形变会卡在异常形状
+        scope.launch { velocity.animateTo(0f, velocitySpec) }
     }
 
     fun animateToIndex(index: Int) {
@@ -448,10 +452,11 @@ private class GlassDragState(
         scope.launch { offset.snapTo(offset.value + deltaPx) }
     }
 
-    /** 松手：吸附到最近一格、橡皮筋回弹、结束按压，并提交选中 */
+    /** 松手：吸附到最近一格、橡皮筋回弹、结束按压（含速度归零），并提交选中 */
     fun settle(target: Int, tabsCount: Int, commit: (Int) -> Unit) {
         val safe = target.coerceIn(0, (tabsCount - 1).coerceAtLeast(0))
-        scope.launch { value.animateTo(safe.toFloat(), valueSpec) { trackVelocity() } }
+        // 吸附期间不再喂速度：否则归零动画会被 trackVelocity 反复覆盖
+        scope.launch { value.animateTo(safe.toFloat(), valueSpec) }
         scope.launch { offset.animateTo(0f, spring(1f, 300f, 0.5f)) }
         release()
         commit(safe)

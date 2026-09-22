@@ -1,22 +1,21 @@
 package com.ahu.campusnet.ui
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ahu.campusnet.auth.AuthController
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
@@ -31,23 +30,17 @@ fun LogsScreen() {
             ScreenHeader("运行日志", "最近 ${logs.size} 条")
         }
 
+        // 顶部长条主色按钮（与首页「去填写」同款）
         item {
-            Card(
+            Button(
+                onClick = { AuthController.clearLogs() },
                 modifier = Modifier
+                    .fillMaxWidth()
                     .padding(horizontal = 12.dp)
-                    .padding(bottom = 12.dp)
+                    .padding(bottom = 12.dp),
+                colors = ButtonDefaults.buttonColorsPrimary(),
             ) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    TextButton(
-                        text = "清空日志",
-                        onClick = { AuthController.clearLogs() },
-                    )
-                }
+                Text("清空日志")
             }
         }
 
@@ -68,15 +61,30 @@ fun LogsScreen() {
                 }
             }
         } else {
-            items(logs) { line ->
-                Text(
-                    text = line,
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurface,
+            // 全部日志包进一张白底卡片
+            item {
+                Card(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 5.dp),
-                )
+                        .padding(horizontal = 12.dp)
+                        .padding(bottom = 12.dp)
+                ) {
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp)
+                    ) {
+                        logs.forEach { line ->
+                            Text(
+                                text = line,
+                                style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurface,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 5.dp),
+                            )
+                        }
+                    }
+                }
             }
         }
     }
