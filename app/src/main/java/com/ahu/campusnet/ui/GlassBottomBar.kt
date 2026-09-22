@@ -4,8 +4,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -38,6 +38,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
@@ -276,45 +277,73 @@ fun GlassBottomBar(
         )
 
         // ④ 统一手势层：点按选中 + 横向拖动跟手。
-        // 用标准手势 API（detectTapGestures / detectHorizontalDragGestures），
-        // 两个 pointerInput 各司其职：拖动超过 slop 后消费事件，点按自然取消；
-        // 纯点按不消费，onTap 正常触发。
+        // ★ 必须用单个 awaitEachGesture 循环，不能用 detectTapGestures +
+        //   detectHorizontalDragGestures 组合：detectTapGestures 会消费 down 事件，
+        //   而拖动检测器（Compose 1.7+ RequireUnconsumed 语义）看到 down 已被消费
+        //   就直接取消 —— 表现就是「按住会涨大、但永远拖不动」。
+        //   参考实现同款循环：down 不挑食全接，move 在 Main pass 无条件消费，
+        //   自己判定「按住胶囊 → 1:1 拖 / 按在 tab 上 → 起飞+滑动接管」。
         Box(
             Modifier
                 .fillMaxSize()
                 .pointerInput(tabs.size, tabWidth, padPx) {
-                    detectTapGestures(
-                        onPress = {
+                    val touchSlop = viewConfiguration.touchSlop
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val downX = down.position.x
+
+                        // 落点在胶囊 ±0.55 个 tab 宽内 → 视为按住胶囊，直接 1:1 拖
+                        val capsuleCenterX = padPx + (drag.value.value + 0.5f) * tabWidth
+                        val capsuleHalf = tabWidth * 0.55f
+                        var dragging = abs(downX - capsuleCenterX) <= capsuleHalf
+                        var pressedTab = -1
+
+                        if (dragging) {
                             drag.press()
-                            // 正常松手时由 onTap→settle 收尾；被取消时在这里兜底复位
-                            if (!tryAwaitRelease()) drag.release()
-                        },
-                        onTap = { offset ->
-                            val index = floor((offset.x - padPx) / tabWidth)
+                        } else {
+                            pressedTab = floor((downX - padPx) / tabWidth)
                                 .toInt()
                                 .coerceIn(0, tabs.size - 1)
-                            drag.animateToIndex(index)
-                            drag.settle(index, tabs.size) { latestOnSelect(it) }
-                        },
-                    )
-                }
-                .pointerInput(tabs.size, tabWidth) {
-                    detectHorizontalDragGestures(
-                        onDragStart = { drag.press() },
-                        onDragEnd = {
-                            val target = drag.value.value
-                                .roundToInt()
-                                .coerceIn(0, tabs.size - 1)
-                            drag.settle(target, tabs.size) { latestOnSelect(it) }
-                        },
-                        onDragCancel = { drag.release() },
-                        onHorizontalDrag = { change, dragAmount ->
-                            // dragAmount 已经是本次横向位移（px），不是 Offset
-                            drag.dragBy(dragAmount, tabWidth)
-                            drag.dragOffsetBy(dragAmount)
+                            // 按下别的 tab：胶囊飞过去并保持按压，继续滑动可接管为拖动
+                            drag.animateToIndexKeepingPress(pressedTab)
+                        }
+
+                        var lastX = downX
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Main)
+                            val change = event.changes.firstOrNull { it.id == down.id }
+                            if (change == null || !change.pressed) {
+                                // 松手 / 取消：吸附最近一格并提交选中
+                                val target = (if (dragging) {
+                                    drag.value.value.roundToInt()
+                                } else {
+                                    pressedTab
+                                }).coerceIn(0, tabs.size - 1)
+                                drag.settle(target, tabs.size) { latestOnSelect(it) }
+                                break
+                            }
+
+                            val dx = change.position.x - lastX
+                            val totalDx = change.position.x - downX
+
+                            // 点 tab 后继续横滑 → 接管为拖动
+                            if (!dragging && abs(totalDx) > touchSlop) {
+                                dragging = true
+                                lastX = change.position.x
+                            }
+
+                            if (dragging && abs(dx) > 0.01f) {
+                                lastX = change.position.x
+                                drag.dragBy(dx, tabWidth)
+                                drag.dragOffsetBy(dx)
+                            } else {
+                                lastX = change.position.x
+                            }
+
+                            // 每个事件都在 Main pass 消费，杜绝页面层抢走手势
                             change.consume()
-                        },
-                    )
+                        }
+                    }
                 }
         )
     }
@@ -361,6 +390,12 @@ private class GlassDragState(
 
     fun animateToIndex(index: Int) {
         scope.launch { value.animateTo(index.toFloat().coerceIn(0f, maxIndex), valueSpec) }
+    }
+
+    /** 按下别的 tab：保持按压状态把胶囊飞过去（松手或滑动接管前不回弹） */
+    fun animateToIndexKeepingPress(index: Int) {
+        press()
+        animateToIndex(index)
     }
 
     /** 拖动跟手：用阻尼弹簧追，手感更"黏" */
