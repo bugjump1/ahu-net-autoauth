@@ -79,7 +79,7 @@ class DrcomClient(
      *
      * 来自 a41.js 的 checkStatus()：
      *   GET http://{host}/drcom/chkstatus?callback=dr{...}&v={...}
-     * 注意它在 **80 端口的 /drcom/** 下，不是 801 的 eportal。
+     * 注意它在 80 端口、路径 /drcom/chkstatus 下，不是 801 的 eportal。
      *
      * 返回 true/false 表示内核给出的权威结论；
      * 返回 null 表示内核不可用（离开了校园网、或内核版本不支持），
