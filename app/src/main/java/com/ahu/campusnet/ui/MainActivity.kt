@@ -94,9 +94,9 @@ fun MainScreen() {
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
                 // 参考实现（ScheduleBottomBar.kt）：底栏只占屏宽 63% 并水平居中，
-                // 是一条"悬浮"的短胶囊，不是接近全宽 —— "底栏太大"就出在这里
+                // 且悬浮在离底部一段距离的位置，不是贴着导航栏
                 .fillMaxWidth(0.63f)
-                .padding(bottom = 8.dp),
+                .padding(bottom = 20.dp),
         )
     }
 }

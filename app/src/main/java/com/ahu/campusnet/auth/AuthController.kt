@@ -169,7 +169,9 @@ object AuthController {
             return
         }
 
-        // ③ 是否已联网：内核接口优先（最权威），系统状态 + 真实探针逐级兜底
+        // ③ 是否已联网：内核接口优先；但内核的「未在线」不作数 ——
+        //    实测存在假阴性（终端明明在线、Portal 也返回「该终端 IP 已在线」，
+        //    内核却回 result=0），所以内核说未在线时必须再用系统状态/外网探针核实。
         val kernel = withContext(Dispatchers.IO) {
             runCatching { client.kernelOnline() }.getOrNull()
         }
@@ -179,11 +181,14 @@ object AuthController {
                 "内核 chkstatus 无结论，原始返回：" +
                     client.lastRawBody.ifBlank { "（空，连接失败）" }
             )
+        } else if (!kernel) {
+            appendLog("内核报未在线（该接口有假阴性，改用系统状态/外网探针核实）")
         }
 
         var source = "内核接口"
         val online = when {
-            kernel != null -> kernel
+            kernel == true -> true
+
             withContext(Dispatchers.IO) { NetInfo.isInternetOk(context) } -> {
                 source = "系统联网状态"
                 true

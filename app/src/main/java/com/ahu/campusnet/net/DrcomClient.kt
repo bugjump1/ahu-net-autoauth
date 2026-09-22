@@ -88,13 +88,21 @@ class DrcomClient(
      *   GET http://{host}/drcom/chkstatus?callback=dr{...}&v={...}
      * 注意它在 80 端口、路径 /drcom/chkstatus 下，不是 801 的 eportal。
      *
-     * 返回 true/false 表示内核给出的权威结论；
-     * 返回 null 表示内核不可用（离开了校园网、或内核版本不支持），
-     * 调用方应退回系统联网状态判断，以免误判掉线。
+     * 返回 true/false 表示内核给出的结论；
+     * 返回 null 表示内核不可用（离开了校园网、或内核版本不支持）。
+     *
+     * ★ 实测注意：这个接口存在"假阴性"——终端明明在线（Portal 登录返回
+     * 「该终端 IP 已在线」），内核却回 result=0。浏览器里它是带着 PHPSESSID
+     * 会话调用的，所以这里先补一次会话预热再问，能对齐一部分；
+     * 仍有假阴性时由调用方回落到系统状态/外网探针，不能全信内核的"未在线"。
      */
     fun kernelOnline(): Boolean? {
+        // 浏览器是带着 PHPSESSID 调这个接口的；冷调可能拿到 result=0 的假阴性
+        if (cookies.isEmpty()) {
+            runCatching { request(fastHttp, "http://$host/", referer = null) }
+        }
         val url = "http://$host/drcom/chkstatus?callback=$CALLBACK_KERNEL&v=${randomV()}"
-        val body = request(fastHttp, url, referer = null) ?: return null
+        val body = request(fastHttp, url, referer = "http://$host/") ?: return null
         val json = extractJson(body) ?: return null
         if (!json.has("result")) return null
 

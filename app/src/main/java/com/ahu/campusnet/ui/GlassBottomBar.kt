@@ -4,8 +4,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -38,11 +38,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -136,7 +134,6 @@ fun GlassBottomBar(
         contentAlignment = Alignment.CenterStart,
     ) {
         val density = LocalDensity.current
-        val viewConfiguration = LocalViewConfiguration.current
         val padPx = with(density) { 4.dp.toPx() }
         val tabWidth = (constraints.maxWidth.toFloat() - padPx * 2f) / tabs.size
         val maxIndex = (tabs.size - 1).toFloat()
@@ -278,61 +275,45 @@ fun GlassBottomBar(
                 .fillMaxWidth(1f / tabs.size),
         )
 
-        // ④ 统一手势层：点击 + 拖动都在这
+        // ④ 统一手势层：点按选中 + 横向拖动跟手。
+        // 用标准手势 API（detectTapGestures / detectHorizontalDragGestures），
+        // 两个 pointerInput 各司其职：拖动超过 slop 后消费事件，点按自然取消；
+        // 纯点按不消费，onTap 正常触发。
         Box(
             Modifier
                 .fillMaxSize()
                 .pointerInput(tabs.size, tabWidth, padPx) {
-                    val touchSlop = viewConfiguration.touchSlop
-                    awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        val downX = down.position.x
-
-                        // 落点离胶囊近 -> 直接拖；落在别的 tab 上 -> 胶囊先飞过去并按住
-                        val capsuleCenterX = padPx + (drag.value.value + 0.5f) * tabWidth
-                        var dragging = abs(downX - capsuleCenterX) <= tabWidth * 0.55f
-                        var pressedTab = -1
-
-                        if (dragging) {
+                    detectTapGestures(
+                        onPress = {
                             drag.press()
-                        } else {
-                            pressedTab = floor((downX - padPx) / tabWidth)
+                            // 正常松手时由 onTap→settle 收尾；被取消时在这里兜底复位
+                            if (!tryAwaitRelease()) drag.release()
+                        },
+                        onTap = { offset ->
+                            val index = floor((offset.x - padPx) / tabWidth)
                                 .toInt()
                                 .coerceIn(0, tabs.size - 1)
-                            drag.previewIndex(pressedTab)
-                        }
-
-                        var lastX = downX
-                        while (true) {
-                            val event = awaitPointerEvent(PointerEventPass.Main)
-                            val change = event.changes.firstOrNull { it.id == down.id }
-                            if (change == null || !change.pressed) {
-                                val target = if (dragging) {
-                                    drag.value.value.roundToInt().coerceIn(0, tabs.size - 1)
-                                } else {
-                                    pressedTab.coerceIn(0, tabs.size - 1)
-                                }
-                                drag.settle(target, tabs.size) { latestOnSelect(it) }
-                                break
-                            }
-
-                            val dx = change.position.x - lastX
-                            val totalDx = change.position.x - downX
-                            lastX = change.position.x
-
-                            // 点在 tab 上之后继续横向滑 -> 接管成拖动
-                            if (!dragging && abs(totalDx) > touchSlop) {
-                                dragging = true
-                            }
-
-                            if (dragging && abs(dx) > 0.01f) {
-                                drag.dragBy(dx, tabWidth)
-                                drag.dragOffsetBy(dx)
-                            }
-
+                            drag.animateToIndex(index)
+                            drag.settle(index, tabs.size) { latestOnSelect(it) }
+                        },
+                    )
+                }
+                .pointerInput(tabs.size, tabWidth) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { drag.press() },
+                        onDragEnd = {
+                            val target = drag.value.value
+                                .roundToInt()
+                                .coerceIn(0, tabs.size - 1)
+                            drag.settle(target, tabs.size) { latestOnSelect(it) }
+                        },
+                        onDragCancel = { drag.release() },
+                        onHorizontalDrag = { change, dragAmount ->
+                            drag.dragBy(dragAmount.x, tabWidth)
+                            drag.dragOffsetBy(dragAmount.x)
                             change.consume()
-                        }
-                    }
+                        },
+                    )
                 }
         )
     }
@@ -375,12 +356,6 @@ private class GlassDragState(
         scope.launch { pressProgress.animateTo(0f, pressSpec) }
         scope.launch { scaleX.animateTo(1f, scaleXSpec) }
         scope.launch { scaleY.animateTo(1f, scaleYSpec) }
-    }
-
-    /** 按住某个 tab：胶囊飞过去并保持按压，松手才提交选中 */
-    fun previewIndex(index: Int) {
-        press()
-        scope.launch { value.animateTo(index.toFloat().coerceIn(0f, maxIndex), valueSpec) }
     }
 
     fun animateToIndex(index: Int) {
