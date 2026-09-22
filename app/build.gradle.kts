@@ -68,6 +68,11 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        // AGP 9.0 起 resValues 默认由 true 改为 false（见 AGP 9.0 release notes 的
+        // android.defaults.buildfeatures.resvalues），必须显式开启，
+        // 否则 defaultConfig 里的 resValue(...) 会报
+        // "contains custom resource values, but the feature is disabled"。
+        resValues = true
     }
 
     packaging {
