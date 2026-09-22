@@ -3,15 +3,23 @@ package com.ahu.campusnet.net
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import java.net.HttpURLConnection
 import java.net.Inet4Address
 import java.net.InetSocketAddress
 import java.net.NetworkInterface
 import java.net.Socket
+import java.net.URL
 
 /**
  * 本机网络信息探测。全部为阻塞调用，务必在 IO 线程执行。
  */
 object NetInfo {
+
+    /** captive portal 探测地址，任一命中即认为真能上外网 */
+    private val PROBES = listOf(
+        "http://www.msftconnecttest.com/connecttest.txt" to "Microsoft Connect Test",
+        "http://captive.apple.com/hotspot-detect.html" to "Success",
+    )
 
     /**
      * 取本机在校园网内的 IPv4 地址。
@@ -74,6 +82,37 @@ object NetInfo {
         val caps = cm.activeNetwork?.let { cm.getNetworkCapabilities(it) } ?: return false
         return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) &&
             caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
+    /**
+     * 兜底探针：实测一次 captive portal 探测地址。
+     *
+     * 为什么需要它：校园网的门户会拦截系统的连通性探测，导致
+     * `NET_CAPABILITY_VALIDATED` 即使已认证也常常是 false（表现为"连上网却显示未认证"）。
+     * 所以在内核 chkstatus 不可用时，再真实请求一次外网地址来确认。
+     *
+     * 未认证时请求会被门户劫持重定向，返回的页面里不含预期字符串，判定为未在线。
+     */
+    fun probeInternetOk(timeoutMs: Int = 4000): Boolean {
+        for ((url, expect) in PROBES) {
+            val body = httpText(url, timeoutMs) ?: continue
+            if (body.contains(expect)) return true
+        }
+        return false
+    }
+
+    private fun httpText(url: String, timeoutMs: Int): String? = try {
+        val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+            connectTimeout = timeoutMs
+            readTimeout = timeoutMs
+            requestMethod = "GET"
+            // 不跟随重定向：门户劫持时我们要看到"不是预期内容"，而不是被转走
+            instanceFollowRedirects = false
+            setRequestProperty("User-Agent", "Mozilla/5.0")
+        }
+        conn.inputStream.use { it.readBytes().toString(Charsets.UTF_8) }
+    } catch (e: Exception) {
+        null
     }
 
     /**

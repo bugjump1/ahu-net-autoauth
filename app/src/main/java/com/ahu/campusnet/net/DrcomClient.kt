@@ -56,10 +56,10 @@ class DrcomClient(
         .retryOnConnectionFailure(false)
         .build()
 
-    /** 内核状态查询专用：短超时，避免离开校园网时干等 */
+    /** 内核状态查询专用：连接超时短（离开校园网时快速失败），读超时放宽一些 */
     private val fastHttp: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(2, TimeUnit.SECONDS)
-        .readTimeout(3, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.SECONDS)
         .retryOnConnectionFailure(false)
         .build()
 
@@ -196,7 +196,13 @@ class DrcomClient(
             val builder = Request.Builder()
                 .url(url)
                 .header("Accept", "*/*")
-                .header("Accept-Encoding", "gzip, deflate")
+                // ★ 千万不要手动设 Accept-Encoding！
+                // OkHttp 只有在「自己」加上 Accept-Encoding: gzip 时才会透明解压
+                // （BridgeInterceptor 里的 transparentGzip）。一旦由我们显式传
+                // gzip/deflate，transparentGzip 变成 false，body 会是**压缩后的原始字节**，
+                // 再按 Content-Type 的 charset 解码就是一串乱码
+                // —— 之前「返回内容无法解析：◆)K2400V'J-…」和「连上网也显示未认证」
+                // 就是这么来的。交给 OkHttp 自动协商即可。
                 .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
                 .header("Connection", "keep-alive")
                 .header("User-Agent", USER_AGENT)

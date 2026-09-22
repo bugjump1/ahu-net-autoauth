@@ -17,18 +17,24 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicBoolean
 
+/**
+ * 链接状态。
+ *
+ * 注意 label 里**不要**再带 "●" 之类的符号：首页会另画一个按 [color] 上色的圆点，
+ * 两边都带的话就会看到「小彩点 + 一个大黑点」并排。
+ */
 enum class LinkState(val label: String, val color: Long) {
     /** 还没检测过 */
-    Idle("● 未检测", 0xFF9E9E9E),
-    Checking("● 检测中…", 0xFF3B82F6),
-    Online("● 已在线", 0xFF16A34A),
-    NotAuthed("● 未认证", 0xFFD97706),
+    Idle("未检测", 0xFF9E9E9E),
+    Checking("检测中…", 0xFF3B82F6),
+    Online("已在线", 0xFF16A34A),
+    NotAuthed("未认证", 0xFFD97706),
     /** 当前走的是移动数据 */
-    MobileData("● 移动网络", 0xFF9E9E9E),
-    NoWifi("● 未连 Wi-Fi", 0xFF9E9E9E),
+    MobileData("移动网络", 0xFF9E9E9E),
+    NoWifi("未连 Wi-Fi", 0xFF9E9E9E),
     /** 连着 Wi-Fi，但连不到校园网认证服务器 */
-    NoCampus("● 未连校园网", 0xFF9E9E9E),
-    Error("● 异常", 0xFFDC2626),
+    NoCampus("未连校园网", 0xFF9E9E9E),
+    Error("异常", 0xFFDC2626),
 }
 
 data class AuthUiState(
@@ -163,14 +169,31 @@ object AuthController {
             return
         }
 
-        // ③ 是否已联网：内核接口优先（最权威），系统联网状态兜底
+        // ③ 是否已联网：内核接口优先（最权威），系统状态 + 真实探针逐级兜底
         val kernel = withContext(Dispatchers.IO) {
             runCatching { client.kernelOnline() }.getOrNull()
         }
-        val online = kernel ?: withContext(Dispatchers.IO) { NetInfo.isInternetOk(context) }
+        var source = "内核接口"
+        val online = when {
+            kernel != null -> kernel
+            withContext(Dispatchers.IO) { NetInfo.isInternetOk(context) } -> {
+                source = "系统联网状态"
+                true
+            }
+
+            withContext(Dispatchers.IO) { NetInfo.probeInternetOk() } -> {
+                source = "外网探针"
+                true
+            }
+
+            else -> {
+                source = "未在线"
+                false
+            }
+        }
         if (online) {
             setState(LinkState.Online, "已在线")
-            appendLog("已在线，无需认证（来源：${if (kernel != null) "内核接口" else "系统联网状态"}）")
+            appendLog("已在线，无需认证（来源：$source）")
             logKernelInfo(client)
             return
         }
