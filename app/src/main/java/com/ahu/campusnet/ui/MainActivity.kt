@@ -3,12 +3,14 @@ package com.ahu.campusnet.ui
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
@@ -59,17 +61,22 @@ fun MainScreen() {
     }
 
     val background = MiuixTheme.colorScheme.surface
-    // 背景层：把页面内容录制下来，供玻璃导航栏取样
-    val backdrop = rememberLayerBackdrop {
-        drawRect(background)
-        drawContent()
-    }
+    // 背景层：默认 onDraw 就是 drawContent()，配合下面「背景色在内侧」的写法，
+    // 页面底色与内容会一起被录进图层，供玻璃导航栏取样。
+    //
+    // 注意不要写成 rememberLayerBackdrop { ... } —— onDraw 是 remember 的 key，
+    // 每次重组都会传一个新 lambda，于是 LayerBackdrop 被反复重建、
+    // layerCoordinates 被清空，玻璃效果会闪甚至失效。
+    val backdrop = rememberLayerBackdrop()
 
     Box(Modifier.fillMaxSize()) {
         Column(
             Modifier
                 .fillMaxSize()
                 .layerBackdrop(backdrop)
+                // background 放在 layerBackdrop 内侧，才会被一起录进背景层；
+                // 同时页面底色改由 Compose 绘制，跟随应用内深浅色设置（而非 values-night）
+                .background(background)
         ) {
             when (index) {
                 0 -> HomeScreen(onGoSettings = { index = 2 })
@@ -83,7 +90,10 @@ fun MainScreen() {
             selectedIndex = index,
             onSelect = { index = it },
             backdrop = backdrop,
-            modifier = Modifier.align(Alignment.BottomCenter),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
         )
     }
 }
