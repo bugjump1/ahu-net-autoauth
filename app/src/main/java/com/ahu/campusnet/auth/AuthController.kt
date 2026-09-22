@@ -8,6 +8,7 @@ import com.ahu.campusnet.net.NetInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -184,11 +185,16 @@ object AuthController {
         val online = kernel == true ||
             withContext(Dispatchers.IO) { NetInfo.isInternetOk(context) } ||
             withContext(Dispatchers.IO) { NetInfo.probeInternetOk() }
-        if (online) {
-            setState(LinkState.Online, "已在线")
+        // ★ 接口说在线 ≠ 真能上网：僵死会话会「假在线」。外网探针核实，
+        //   通过才算在线；不通过记一条日志，继续按未在线流程走（可自动重认证）。
+        if (online && withContext(Dispatchers.IO) { NetInfo.probeInternetOk() }) {
+            setState(LinkState.Online, "已在线，可以上网")
             appendLog("已在线，无需认证")
             logKernelInfo(client)
             return
+        }
+        if (online) {
+            appendLog("接口显示在线，但外网核实未通过，按未在线处理")
         }
 
         // ④ 未在线：需要认证
@@ -208,12 +214,32 @@ object AuthController {
 
         appendLog("开始认证：${cfg.username} @ ${ip ?: "未知IP"}")
         val result = withContext(Dispatchers.IO) { client.login() }
-        if (result.ok) {
-            setState(LinkState.Online, result.message)
-            appendLog("认证成功：${result.message}")
-        } else {
+        if (!result.ok) {
             setState(LinkState.Error, result.message)
             appendLog("认证失败：${result.message}")
+            return
+        }
+
+        // ★ 认证接口返回成功 ≠ 真能上网。尤其是「该终端 IP 已在线」这种应答，
+        //   可能对应一个僵死会话（服务端记着在线、网关实际不放行）。
+        //   所以成功后必须真实请求外网核实；网关放行有几秒延迟，给两次机会。
+        setState(LinkState.Checking, "认证已受理，正在核实外网连通…", updateTime = false)
+        var verified = false
+        for (attempt in 1..2) {
+            delay(1500)
+            if (withContext(Dispatchers.IO) { NetInfo.probeInternetOk() }) {
+                verified = true
+                break
+            }
+        }
+        if (verified) {
+            setState(LinkState.Online, "认证成功，可以上网")
+            appendLog("认证成功：${result.message}（外网连通已核实）")
+            logKernelInfo(client)
+        } else {
+            setState(LinkState.Error, "认证已受理，但外网不通")
+            appendLog("认证接口返回成功，但外网核实两次未通过")
+            appendLog("建议：先「注销并断网」再重新认证；无效则断开 Wi-Fi 重连后重试")
         }
     }
 

@@ -22,12 +22,12 @@ on:
       version_code:
         description: '版本号 Version Code（整数，每次更新必须递增）'
         required: false
-        default: '7'
+        default: '8'
         type: string
       version_name:
         description: '版本名 Version Name（展示用字符串，如 1.1.0）'
         required: false
-        default: '1.4.0'
+        default: '1.4.1'
         type: string
 
 permissions:
@@ -41,8 +41,8 @@ jobs:
       # inputs.* 在 push / PR 触发时为空字符串，用 || 回落到默认值
       APP_ID: ${{ inputs.app_id || 'com.bugjump.ahuweb' }}
       APP_NAME: ${{ inputs.app_name || 'Ahu Plus' }}
-      VERSION_CODE: ${{ inputs.version_code || '7' }}
-      VERSION_NAME: ${{ inputs.version_name || '1.4.0' }}
+      VERSION_CODE: ${{ inputs.version_code || '8' }}
+      VERSION_NAME: ${{ inputs.version_name || '1.4.1' }}
 
     steps:
       - name: Checkout
