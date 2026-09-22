@@ -90,6 +90,8 @@ fun MainScreen() {
             selectedIndex = index,
             onSelect = { index = it },
             backdrop = backdrop,
+            // 拖动手势诊断：手势层的关键事件写进日志页，便于远程定位
+            onDebugLog = { AuthController.appendLog("[手势] $it") },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()

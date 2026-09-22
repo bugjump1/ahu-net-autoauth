@@ -6,6 +6,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -111,6 +112,7 @@ fun GlassBottomBar(
     onSelect: (Int) -> Unit,
     backdrop: Backdrop,
     modifier: Modifier = Modifier,
+    onDebugLog: ((String) -> Unit)? = null,
 ) {
     // 跟随「应用内」深浅色，而不是系统 —— 手动切深色时玻璃才跟着变
     val isLight = !isDarkTheme()
@@ -283,9 +285,12 @@ fun GlassBottomBar(
         //   就直接取消 —— 表现就是「按住会涨大、但永远拖不动」。
         //   参考实现同款循环：down 不挑食全接，move 在 Main pass 无条件消费，
         //   自己判定「按住胶囊 → 1:1 拖 / 按在 tab 上 → 起飞+滑动接管」。
+        // ★ systemGestureExclusion：把这块区域从系统手势（手势导航的返回/
+        //   底部滑动）里排除，否则系统抢走 move、应用只收到取消。
         Box(
             Modifier
                 .fillMaxSize()
+                .systemGestureExclusion()
                 .pointerInput(tabs.size, tabWidth, padPx) {
                     val touchSlop = viewConfiguration.touchSlop
                     awaitEachGesture {
@@ -298,6 +303,14 @@ fun GlassBottomBar(
                         var dragging = abs(downX - capsuleCenterX) <= capsuleHalf
                         var pressedTab = -1
 
+                        onDebugLog?.invoke(
+                            "按下 x=" + downX.toInt() +
+                                " down已消费=" + down.isConsumed +
+                                " tab宽=" + tabWidth.toInt() +
+                                " 胶囊中心=" + capsuleCenterX.toInt() +
+                                " 拖动模式=" + dragging
+                        )
+
                         if (dragging) {
                             drag.press()
                         } else {
@@ -309,10 +322,18 @@ fun GlassBottomBar(
                         }
 
                         var lastX = downX
+                        var moveCount = 0
+                        var lastSampleDx = 0f
                         while (true) {
                             val event = awaitPointerEvent(PointerEventPass.Main)
                             val change = event.changes.firstOrNull { it.id == down.id }
                             if (change == null || !change.pressed) {
+                                onDebugLog?.invoke(
+                                    "结束 kind=" + (if (change == null) "指针丢失" else "松手/取消") +
+                                        " moves=" + moveCount +
+                                        " 拖过=" + dragging +
+                                        " value=" + (Math.round(drag.value.value * 100f) / 100f)
+                                )
                                 // 松手 / 取消：吸附最近一格并提交选中
                                 val target = (if (dragging) {
                                     drag.value.value.roundToInt()
@@ -338,6 +359,17 @@ fun GlassBottomBar(
                                 drag.dragOffsetBy(dx)
                             } else {
                                 lastX = change.position.x
+                            }
+
+                            // 节流采样：每累计约 70px 记一条，避免刷爆日志页
+                            moveCount++
+                            if (dragging && abs(totalDx - lastSampleDx) >= 70f) {
+                                lastSampleDx = totalDx
+                                onDebugLog?.invoke(
+                                    "拖动 totalDx=" + totalDx.toInt() +
+                                        " value=" + (Math.round(drag.value.value * 100f) / 100f) +
+                                        " moves=" + moveCount
+                                )
                             }
 
                             // 每个事件都在 Main pass 消费，杜绝页面层抢走手势
